@@ -1,0 +1,12 @@
+[Unit]
+Description=Trigger ACE-Step auto sample generation hourly
+
+[Timer]
+# Fire at top of every hour, plus catch up missed runs after sleep/reboot.
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=60
+Unit=ace-auto-generate.service
+
+[Install]
+WantedBy=timers.target

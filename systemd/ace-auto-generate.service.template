@@ -1,0 +1,17 @@
+[Unit]
+Description=ACE-Step auto sample generation (single iteration)
+# Avoid stepping on a previous still-running generation.
+ConditionPathExists=@PROJECT_ROOT@/auto_generate.sh
+
+[Service]
+Type=oneshot
+WorkingDirectory=@PROJECT_ROOT@
+ExecStart=@PROJECT_ROOT@/auto_generate.sh
+# Inherit a usable PATH so uv/gws/demucs are resolvable. install.sh
+# auto-detects user-local tool directories (typically ~/.cargo/bin and
+# ~/.local/bin) and prepends them ahead of the system PATH.
+Environment=PATH=@EXTRA_PATH@:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Cap one run at 30 minutes (generation + handoff). separate.sh runs
+# synchronously inside this service.
+TimeoutStartSec=1800
+Nice=10
