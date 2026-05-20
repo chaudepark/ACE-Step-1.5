@@ -1,11 +1,21 @@
 """Optional-parameter controls for the generation tab."""
 
+import os
 from typing import Any
 
 import gradio as gr
 
 from acestep.constants import VALID_LANGUAGES
 from acestep.ui.gradio.i18n import t
+
+
+def _auto_default() -> bool:
+    # ACESTEP_AUTO_DEFAULT controls the initial state of the five "auto"
+    # checkboxes (bpm/key/timesig/vocal_lang/duration). Defaults to True
+    # to preserve historical behavior; set to false/0/no in .env to start
+    # with manual entry enabled.
+    raw = os.environ.get("ACESTEP_AUTO_DEFAULT", "true").strip().lower()
+    return raw not in {"false", "0", "no", "off"}
 
 
 def build_optional_parameter_controls(
@@ -26,6 +36,8 @@ def build_optional_parameter_controls(
         A component map containing optional metadata fields and auto-toggle controls.
     """
 
+    auto_default = _auto_default()
+
     with gr.Accordion(
         t("generation.optional_params"),
         open=True,
@@ -39,7 +51,7 @@ def build_optional_parameter_controls(
                 step=1,
                 info=t("generation.bpm_info"),
                 elem_classes=["has-info-container"],
-                interactive=False,
+                interactive=not auto_default,
             )
             key_scale = gr.Textbox(
                 label=t("generation.keyscale_label"),
@@ -47,7 +59,7 @@ def build_optional_parameter_controls(
                 value="",
                 info=t("generation.keyscale_info"),
                 elem_classes=["has-info-container"],
-                interactive=False,
+                interactive=not auto_default,
             )
             time_signature = gr.Dropdown(
                 choices=["", "2", "3", "4", "6", "N/A"],
@@ -56,7 +68,7 @@ def build_optional_parameter_controls(
                 allow_custom_value=True,
                 info=t("generation.timesig_info"),
                 elem_classes=["has-info-container"],
-                interactive=False,
+                interactive=not auto_default,
             )
             vocal_language = gr.Dropdown(
                 choices=[(lang if lang != "unknown" else "Instrumental / auto", lang) for lang in VALID_LANGUAGES],
@@ -65,30 +77,30 @@ def build_optional_parameter_controls(
                 info=t("generation.vocal_language_info"),
                 allow_custom_value=True,
                 elem_classes=["has-info-container"],
-                interactive=False,
+                interactive=not auto_default,
             )
         with gr.Row(elem_classes=["auto-toggles-row"]):
             bpm_auto = gr.Checkbox(
                 label=t("generation.bpm_auto_label"),
-                value=True,
+                value=auto_default,
                 container=False,
                 elem_classes=["auto-toggle"],
             )
             key_auto = gr.Checkbox(
                 label=t("generation.key_auto_label"),
-                value=True,
+                value=auto_default,
                 container=False,
                 elem_classes=["auto-toggle"],
             )
             timesig_auto = gr.Checkbox(
                 label=t("generation.timesig_auto_label"),
-                value=True,
+                value=auto_default,
                 container=False,
                 elem_classes=["auto-toggle"],
             )
             vocal_lang_auto = gr.Checkbox(
                 label=t("generation.vocal_lang_auto_label"),
-                value=True,
+                value=auto_default,
                 container=False,
                 elem_classes=["auto-toggle"],
             )
@@ -102,7 +114,8 @@ def build_optional_parameter_controls(
                 info=t("generation.duration_info")
                 + f" (Max: {max_duration}s / {max_duration // 60} min)",
                 elem_classes=["has-info-container"],
-                interactive=False,
+                interactive=not auto_default,
+                elem_id="acestep-audio-duration",
             )
             batch_size_input = gr.Number(
                 label=t("generation.batch_size_label"),
@@ -113,13 +126,15 @@ def build_optional_parameter_controls(
                 info=t("generation.batch_size_info") + f" (Max: {max_batch_size})",
                 elem_classes=["has-info-container"],
                 interactive=not service_mode,
+                elem_id="acestep-batch-size",
             )
         with gr.Row(elem_classes=["auto-toggles-row"]):
             duration_auto = gr.Checkbox(
                 label=t("generation.duration_auto_label"),
-                value=True,
+                value=auto_default,
                 container=False,
                 elem_classes=["auto-toggle"],
+                elem_id="acestep-duration-auto",
             )
             gr.HTML("<span></span>")
         reset_all_auto_btn = gr.Button(t("generation.reset_all_auto"), variant="secondary", size="sm")

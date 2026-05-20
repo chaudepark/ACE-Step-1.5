@@ -1,5 +1,6 @@
 """Output and automation controls for generation advanced settings."""
 
+import os
 from typing import Any
 
 import gradio as gr
@@ -9,6 +10,12 @@ from acestep.ui.gradio.i18n import t
 
 _MP3_BITRATE_CHOICES = [("128 kbps", "128k"), ("192 kbps", "192k"), ("256 kbps", "256k"), ("320 kbps", "320k")]
 _MP3_SAMPLE_RATE_CHOICES = [("48 kHz", 48000), ("44.1 kHz", 44100)]
+
+# Server-side default audio format. ``mp3`` requires the system FFmpeg shared
+# libraries via torchcodec; environments without them (e.g. minimal WSL2)
+# silently break only at save time. Default to ``wav`` so the UI works out
+# of the box. Override via ``ACESTEP_AUDIO_FORMAT`` env var.
+_DEFAULT_AUDIO_FORMAT = os.environ.get("ACESTEP_AUDIO_FORMAT", "wav").strip().lower() or "wav"
 
 
 def _update_mp3_control_visibility(audio_format: str, service_mode: bool = False):
@@ -39,7 +46,7 @@ def build_output_controls(
     """
 
     params = init_params or {}
-    initial_audio_format = params.get("audio_format", "mp3")
+    initial_audio_format = params.get("audio_format", _DEFAULT_AUDIO_FORMAT)
     initial_mp3_visible = initial_audio_format == "mp3"
     with gr.Accordion(t("generation.advanced_output_section"), open=False, elem_classes=["has-info-container"]):
         with gr.Row():

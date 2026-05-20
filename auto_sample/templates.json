@@ -1,0 +1,160 @@
+{
+  "_doc": "ACE-Step auto-generation templates. Genres tagged with use=cover/t2m/both.",
+  "task_modes": [
+    {"mode": "cover", "weight": 1, "cover_strength_range": [0.5, 0.85]},
+    {"mode": "t2m",   "weight": 1}
+  ],
+
+  "global_negatives_default": ["no rock", "no guitar", "no metal"],
+
+  "moods": [
+    "melancholic and introspective",
+    "dreamy and ethereal",
+    "moody and mysterious",
+    "warm and intimate",
+    "dark and atmospheric",
+    "nostalgic and hazy",
+    "euphoric and uplifting",
+    "tense and cinematic",
+    "soft and contemplative",
+    "groovy and laid-back"
+  ],
+
+  "production_textures": [
+    "sparse minimal production",
+    "warm vinyl crackle",
+    "lo-fi tape saturation",
+    "lush reverb space",
+    "dry intimate close-mic",
+    "wide stereo field",
+    "gritty analog texture"
+  ],
+
+  "genres": [
+    {
+      "name": "trip-hop",
+      "use": "both",
+      "instruments": ["sub bass", "lo-fi drums", "vintage synth pads", "rhodes electric piano"],
+      "vocal_styles": ["breathy female vocal", "whispered female vocal", "intimate male spoken word"],
+      "bpm_range": [85, 105],
+      "keys": ["Dm", "Cm", "Am", "Em", "F#m"],
+      "extra_tags": ["dark trip-hop", "Massive Attack inspired", "Portishead vibe"],
+      "negatives": ["no rock", "no electric guitar", "no metal"]
+    },
+    {
+      "name": "synthwave",
+      "use": "both",
+      "instruments": ["analog synth lead", "warm pad layers", "arpeggiated bassline", "gated reverb drums"],
+      "vocal_styles": ["breathy female vocal", "ethereal male vocal"],
+      "bpm_range": [95, 115],
+      "keys": ["Am", "Dm", "Em", "Bm"],
+      "extra_tags": ["80s synthwave", "retro neon vibe", "Kavinsky inspired", "chrome aesthetic"],
+      "negatives": ["no rock guitar", "no metal", "no acoustic"]
+    },
+    {
+      "name": "ambient",
+      "use": "cover",
+      "instruments": ["evolving synth pads", "granular textures", "deep drones", "ethereal swells"],
+      "vocal_styles": [],
+      "bpm_range": [60, 80],
+      "keys": ["C", "G", "D", "Am", "Em"],
+      "extra_tags": ["ambient soundscape", "Brian Eno inspired", "Stars of the Lid vibe", "meditative drone", "no drums"],
+      "negatives": ["no drums", "no rock", "no guitar", "no vocals"]
+    },
+    {
+      "name": "idm-electronica",
+      "use": "cover",
+      "instruments": ["intricate glitch beats", "warm analog synths", "polyrhythmic percussion", "chopped textures"],
+      "vocal_styles": [],
+      "bpm_range": [90, 130],
+      "keys": ["Am", "Dm", "Em", "F#m"],
+      "extra_tags": ["IDM electronica", "Boards of Canada inspired", "Aphex Twin vibe", "textural detail"],
+      "negatives": ["no rock", "no guitar", "no metal", "fully instrumental"]
+    },
+    {
+      "name": "lofi-hiphop",
+      "use": "both",
+      "instruments": ["dusty drum samples", "warm bass", "chopped piano loops", "vinyl noise"],
+      "vocal_styles": ["soulful female vocal", "laid-back male vocal", "jazzy spoken word"],
+      "bpm_range": [70, 90],
+      "keys": ["Cm", "Fm", "Dm", "Am"],
+      "extra_tags": ["lofi hip-hop", "Nujabes inspired", "chill study beats", "warm and hazy"],
+      "negatives": ["no rock guitar", "no metal"]
+    },
+    {
+      "name": "rnb-neosoul",
+      "use": "t2m",
+      "instruments": ["soft electric piano", "subtle 808 drums", "smooth bass", "warm synth pads"],
+      "vocal_styles": ["soulful female lead vocal", "breathy intimate female vocal", "smooth male vocal"],
+      "bpm_range": [70, 95],
+      "keys": ["Fm", "Cm", "Gm", "Bbm"],
+      "extra_tags": ["modern R&B", "neo-soul", "bedroom R&B", "vocal-forward mix"],
+      "negatives": ["no rock", "no guitar", "no metal"]
+    },
+    {
+      "name": "dream-pop",
+      "use": "t2m",
+      "instruments": ["shimmering pads", "soft synth bass", "reverb-soaked drums", "ethereal textures"],
+      "vocal_styles": ["airy female vocal", "ethereal whispered female vocal"],
+      "bpm_range": [80, 110],
+      "keys": ["D", "A", "Em", "Bm"],
+      "extra_tags": ["dream-pop", "Beach House inspired", "shoegaze-adjacent", "hazy ethereal"],
+      "negatives": ["no electric guitar", "no rock drums", "no metal"]
+    },
+    {
+      "name": "chillwave",
+      "use": "both",
+      "instruments": ["warm synth chords", "soft drum machine", "filtered bass", "tape-saturated pads"],
+      "vocal_styles": ["distant female vocal", "vintage-style male vocal"],
+      "bpm_range": [85, 110],
+      "keys": ["Am", "Cm", "Em", "Gm"],
+      "extra_tags": ["chillwave", "Washed Out inspired", "Toro y Moi vibe", "nostalgic summer"],
+      "negatives": ["no rock", "no guitar solo", "no metal"]
+    },
+    {
+      "name": "downtempo",
+      "use": "both",
+      "instruments": ["deep bass", "soft jazzy drums", "muted synth pads", "rhodes keys"],
+      "vocal_styles": ["sultry female vocal", "intimate spoken word"],
+      "bpm_range": [75, 100],
+      "keys": ["Dm", "Am", "Em", "Cm"],
+      "extra_tags": ["downtempo", "Bonobo inspired", "Thievery Corporation vibe", "late night chill"],
+      "negatives": ["no rock", "no guitar solo", "no metal"]
+    }
+  ],
+
+  "vocal_lyrics_pool": [
+    {
+      "intro": "Mmm mmm, ooh\nAh, ah, ah",
+      "verse": "Late night, you're on my mind\nSlow motion, taking my time\nMmm, ooh yeah\nFeeling your shadow next to mine",
+      "pre_chorus": "And I, I just can't let go\nOh oh, oh oh",
+      "chorus": "Take me higher, take me slow\nOoh ah ah, ee oh oh\nCloser baby, closer now\nMmm la la, yeah yeah yeah",
+      "bridge": "Ooh, ah, mmm\nLa la la, oh oh\nYeah yeah, ah ah",
+      "outro": "Mmm, ooh\nFade away"
+    },
+    {
+      "intro": "Ah ah ah, oh\nMmm",
+      "verse": "Walking through the empty streets\nShadows of forgotten dreams\nOoh ooh ooh\nWhispers of what used to be",
+      "pre_chorus": "Hold me close, don't let me go\nAh, ah, ah",
+      "chorus": "Falling through the silver light\nLa la, ooh oh oh\nDancing in the velvet night\nMmm, ah ah ah yeah",
+      "bridge": "Ee ah ee ah\nOoh la la la\nMmm mmm",
+      "outro": "Drifting away\nMmm, ooh"
+    },
+    {
+      "intro": "Ooh ooh\nMmm",
+      "verse": "Colors fade into the blue\nMemories of me and you\nAh ah ah\nEverything we used to do",
+      "pre_chorus": "And I'm still here, oh oh\nOoh ah",
+      "chorus": "Hold on to this moment now\nLa la, ee ah ah\nNothing's quite the same somehow\nMmm, oh oh oh yeah",
+      "bridge": "Ah ah, ee ee\nMmm mmm ooh\nLa la la",
+      "outro": "Slowly fading\nOoh, mmm"
+    },
+    {
+      "intro": "[Instrumental]\nMmm ah",
+      "verse": "Silver moonlight on the floor\nSecrets we don't speak no more\nOoh oh oh\nLeaving footprints by the door",
+      "pre_chorus": "Take me somewhere, anywhere\nAh ah ah",
+      "chorus": "Drowning in the midnight haze\nOoh la la la la\nLost inside this endless maze\nMmm, yeah yeah yeah",
+      "bridge": "Ah ah ah ah\nLa la, ooh oh\nMmm",
+      "outro": "Fading slow\nAh, mmm"
+    }
+  ]
+}

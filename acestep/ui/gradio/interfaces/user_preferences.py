@@ -14,14 +14,23 @@ hacking required.
 from __future__ import annotations
 
 import json
+import os
 from functools import partial
 from pathlib import Path
 from typing import Any
 
 
+def _env_auto_default() -> bool:
+    raw = os.environ.get("ACESTEP_AUTO_DEFAULT", "true").strip().lower()
+    return raw not in {"false", "0", "no", "off"}
+
+
 _ASSET_FILENAME = "user_preferences.js"
 _STORAGE_KEY = "acestep.ui.user_preferences"
-_SCHEMA_VERSION = 1
+# Bump when the set of persisted keys or their default semantics change in a
+# way that should invalidate older saved preferences. v2: default audio_format
+# switched to ``wav`` and new generation-parameter keys were added.
+_SCHEMA_VERSION = 2
 
 # Ordered list of preference keys.  The order here MUST match the order of
 # *outputs* passed to ``demo.load()`` in ``wire_preference_restore``.
@@ -37,12 +46,18 @@ PREF_KEYS: list[str] = [
     "latent_shift",
     "latent_rescale",
     "lm_batch_chunk_size",
+    "audio_duration",
+    "duration_auto",
+    "batch_size_input",
+    "inference_steps",
+    "shift",
+    "use_adg",
 ]
 
 # Default values used when localStorage is empty or the schema version has
 # changed.  Keys must match ``PREF_KEYS``.
 _DEFAULTS: dict[str, Any] = {
-    "audio_format": "mp3",
+    "audio_format": "wav",
     "mp3_bitrate": "128k",
     "mp3_sample_rate": 48000,
     "score_scale": 0.5,
@@ -53,6 +68,12 @@ _DEFAULTS: dict[str, Any] = {
     "latent_shift": 0.0,
     "latent_rescale": 1.0,
     "lm_batch_chunk_size": 8,
+    "audio_duration": -1.0,
+    "duration_auto": _env_auto_default(),
+    "batch_size_input": 1,
+    "inference_steps": 8,
+    "shift": 1.0,
+    "use_adg": False,
 }
 
 
@@ -121,9 +142,12 @@ def _build_restore_js(num_outputs: int) -> str:
             const raw = window.localStorage.getItem(STORAGE_KEY);
             if (!raw) return SKIP;
             const prefs = JSON.parse(raw);
-            // Only reset on downgrade; forward-compatible additions of new
-            // keys are handled by skipping (preserving init_params).
-            if (typeof prefs._version === "number" && prefs._version > SCHEMA_VERSION) {{
+            // Discard stored prefs whose schema version does not match the
+            // current code. Both upgrades and downgrades reset so that
+            // breaking default changes (e.g. audio_format mp3 -> wav) cannot
+            // be silently overridden by stale localStorage.
+            if (typeof prefs._version !== "number" || prefs._version !== SCHEMA_VERSION) {{
+                try {{ window.localStorage.removeItem(STORAGE_KEY); }} catch (_e) {{}}
                 return SKIP;
             }}
             const result = KEYS.map(k => {{
@@ -157,6 +181,14 @@ def _build_restore_js(num_outputs: int) -> str:
             const audioFormat = result[0];
             const mp3 = audioFormat === null ? null : audioFormat === "mp3";
             result.push(mp3, mp3, mp3);
+            // Derive audio_duration interactivity from restored duration_auto.
+            // Gradio .load() does not fire .change(), so the duration_auto
+            // checkbox handler that normally toggles audio_duration won't run.
+            // Push an extra interactive flag (true when duration_auto is False).
+            const durationAutoIdx = KEYS.indexOf("duration_auto");
+            const durationAuto = durationAutoIdx >= 0 ? result[durationAutoIdx] : null;
+            const audioDurInteractive = durationAuto === null ? null : !durationAuto;
+            result.push(audioDurInteractive);
             return result;
         }} catch (_e) {{
             return SKIP;
@@ -189,6 +221,12 @@ def restore_preferences(
         return tuple(gr.update() for _ in range(_num_outputs))
 
     n_prefs = len(PREF_KEYS)
+    # Extra outputs after PREF_KEYS:
+    #   [n_prefs    ] mp3_controls_row  (visibility only)
+    #   [n_prefs + 1] mp3_bitrate       (visibility + interactive)
+    #   [n_prefs + 2] mp3_sample_rate   (visibility + interactive)
+    #   [n_prefs + 3] audio_duration    (interactive only, derived from duration_auto)
+    audio_duration_extra_idx = n_prefs + 3
     results: list[Any] = []
     for i, v in enumerate(values):
         if v is None:
@@ -196,7 +234,10 @@ def restore_preferences(
         elif i == n_prefs and isinstance(v, bool):
             # mp3_controls_row: visibility only.
             results.append(gr.update(visible=v))
-        elif i > n_prefs and isinstance(v, bool):
+        elif i == audio_duration_extra_idx and isinstance(v, bool):
+            # audio_duration interactivity (derived from duration_auto).
+            results.append(gr.update(interactive=v))
+        elif n_prefs < i < audio_duration_extra_idx and isinstance(v, bool):
             # mp3_bitrate, mp3_sample_rate: visibility + interactivity.
             results.append(gr.update(visible=v, interactive=v))
         else:
@@ -249,6 +290,15 @@ def wire_preference_restore(
         comp = generation_section.get(mp3_key)
         if comp is not None:
             outputs.append(comp)
+
+    # Sync audio_duration interactivity with restored duration_auto value.
+    # Same .load() reactivity gap as the mp3 row: the duration_auto change
+    # handler that toggles audio_duration's interactive flag does not fire
+    # on load, so we add audio_duration as an extra output and emit a pure
+    # interactive=… update derived in the restore JS.
+    audio_duration_comp = generation_section.get("audio_duration")
+    if audio_duration_comp is not None:
+        outputs.append(audio_duration_comp)
 
     demo.load(
         fn=partial(restore_preferences, _num_outputs=len(outputs)),

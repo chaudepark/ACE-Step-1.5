@@ -107,7 +107,7 @@ class SaveScriptTests(unittest.TestCase):
         self.assertEqual(script_1, script_2)
 
 
-_NUM_OUTPUTS = len(PREF_KEYS) + 3  # +3 for mp3_controls_row, mp3_bitrate, mp3_sample_rate
+_NUM_OUTPUTS = len(PREF_KEYS) + 4  # +3 mp3_* extras, +1 audio_duration interactive extra
 
 
 class RestoreTests(unittest.TestCase):
@@ -124,12 +124,14 @@ class RestoreTests(unittest.TestCase):
         for key in PREF_KEYS:
             self.assertIn(f'"{key}"', js, f"Missing key in restore JS: {key}")
 
-    def test_restore_js_only_resets_on_downgrade(self):
-        """Version check should only discard prefs from future (higher) versions."""
+    def test_restore_js_resets_on_any_version_mismatch(self):
+        """Version check should discard prefs whose schema version does not
+        match the current code (both upgrade and downgrade), so breaking
+        default changes cannot be silently overridden."""
         js = _build_restore_js(_NUM_OUTPUTS)
         self.assertIn("_version", js)
-        self.assertIn("prefs._version > SCHEMA_VERSION", js)
-        self.assertNotIn("prefs._version !== SCHEMA_VERSION", js)
+        self.assertIn("prefs._version !== SCHEMA_VERSION", js)
+        self.assertIn("removeItem", js)
 
     def test_restore_js_coerces_numeric_dropdown_values(self):
         """Dropdown values stored as strings in localStorage must be coerced
@@ -161,43 +163,71 @@ class RestoreTests(unittest.TestCase):
         self.assertIn('result.push(', js)
         self.assertIn('"mp3"', js)
 
+    def _build_pref_values(self):
+        """Return a tuple of representative non-None values, one per PREF_KEY."""
+        sample = {
+            "audio_format": "flac",
+            "mp3_bitrate": "320k",
+            "mp3_sample_rate": 44100,
+            "score_scale": 0.8,
+            "enable_normalization": False,
+            "normalization_db": -3.0,
+            "fade_in_duration": 0.5,
+            "fade_out_duration": 1.0,
+            "latent_shift": 0.05,
+            "latent_rescale": 0.95,
+            "lm_batch_chunk_size": 4,
+            "audio_duration": 180.0,
+            "duration_auto": False,
+            "batch_size_input": 1,
+            "inference_steps": 24,
+            "shift": 3.0,
+            "use_adg": True,
+        }
+        return tuple(sample[k] for k in PREF_KEYS)
+
     def test_restore_preferences_passes_through_values(self):
         """Non-None values are passed through unchanged."""
-        values = ("flac", "320k", 44100, 0.8, False, -3.0, 0.5, 1.0, 0.05, 0.95, 4, True)
+        values = self._build_pref_values()
         result = restore_preferences(*values)
-        # First 11 values are direct pass-through, last is visibility.
         for i in range(len(PREF_KEYS)):
             self.assertEqual(result[i], values[i])
 
     def test_restore_preferences_converts_none_to_gr_update(self):
         """None values from JS should become gr.update() (no-op)."""
-        values = (None, None, None, None, None, None, None, None, None, None, None, None)
+        values = tuple([None] * len(PREF_KEYS))
         result = restore_preferences(*values)
         for v in result:
             self.assertIsInstance(v, dict, "None should be converted to gr.update()")
             self.assertEqual(v["__type__"], "update")
 
     def test_restore_preferences_converts_visibility_bools(self):
-        """The trailing booleans for mp3 controls should become
-        gr.update(visible=...) not raw bools."""
-        # 11 pref values + 3 mp3 visibility bools
-        values = ("mp3", "128k", 48000, 0.5, True, -1.0, 0.0, 0.0, 0.0, 1.0, 8, True, True, True)
+        """The trailing booleans for mp3 controls and audio_duration should
+        become gr.update(...) not raw bools."""
+        n_prefs = len(PREF_KEYS)
+        # pref values + 3 mp3 visibility bools + 1 audio_duration interactive bool
+        values = self._build_pref_values() + (True, True, True, True)
         result = restore_preferences(*values)
-        # mp3_controls_row (index 11): visible only
-        row_update = result[11]
+        # mp3_controls_row (index n_prefs): visible only
+        row_update = result[n_prefs]
         self.assertIsInstance(row_update, dict)
         self.assertTrue(row_update["visible"])
         self.assertNotIn("interactive", row_update)
-        # mp3_bitrate (index 12): visible + interactive
-        bitrate_update = result[12]
+        # mp3_bitrate (index n_prefs + 1): visible + interactive
+        bitrate_update = result[n_prefs + 1]
         self.assertIsInstance(bitrate_update, dict)
         self.assertTrue(bitrate_update["visible"])
         self.assertTrue(bitrate_update["interactive"])
-        # mp3_sample_rate (index 13): visible + interactive
-        sr_update = result[13]
+        # mp3_sample_rate (index n_prefs + 2): visible + interactive
+        sr_update = result[n_prefs + 2]
         self.assertIsInstance(sr_update, dict)
         self.assertTrue(sr_update["visible"])
         self.assertTrue(sr_update["interactive"])
+        # audio_duration (index n_prefs + 3): interactive only
+        audio_dur_update = result[n_prefs + 3]
+        self.assertIsInstance(audio_dur_update, dict)
+        self.assertTrue(audio_dur_update["interactive"])
+        self.assertNotIn("visible", audio_dur_update)
 
     def test_restore_preferences_empty_values_returns_noop_updates(self):
         """When called with no values (JS did not forward args), the function

@@ -33,6 +33,7 @@ def build_dit_controls(ui_config: dict[str, Any], think_enabled: bool = False) -
                 label=t("generation.inference_steps_label"),
                 info=t("generation.inference_steps_info"),
                 elem_classes=["has-info-container"],
+                elem_id="acestep-inference-steps",
             )
             guidance_scale = gr.Slider(
                 minimum=1.0,
@@ -125,6 +126,7 @@ def build_dit_controls(ui_config: dict[str, Any], think_enabled: bool = False) -
                 info=t("generation.use_adg_info"),
                 elem_classes=["has-info-container"],
                 visible=ui_config["use_adg_visible"],
+                elem_id="acestep-use-adg",
             )
             shift = gr.Slider(
                 minimum=1.0,
@@ -135,6 +137,7 @@ def build_dit_controls(ui_config: dict[str, Any], think_enabled: bool = False) -
                 info=t("generation.shift_info"),
                 elem_classes=["has-info-container"],
                 visible=ui_config["shift_visible"],
+                elem_id="acestep-shift",
             )
         with gr.Row():
             custom_timesteps = gr.Textbox(

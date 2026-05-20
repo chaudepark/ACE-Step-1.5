@@ -32,6 +32,12 @@
         latent_shift:        { elemId: "acestep-latent-shift",        type: "slider"   },
         latent_rescale:      { elemId: "acestep-latent-rescale",      type: "slider"   },
         lm_batch_chunk_size: { elemId: "acestep-lm-batch-chunk-size", type: "number"   },
+        audio_duration:      { elemId: "acestep-audio-duration",      type: "number"   },
+        duration_auto:       { elemId: "acestep-duration-auto",       type: "checkbox" },
+        batch_size_input:    { elemId: "acestep-batch-size",          type: "number"   },
+        inference_steps:     { elemId: "acestep-inference-steps",     type: "slider"   },
+        shift:               { elemId: "acestep-shift",               type: "slider"   },
+        use_adg:             { elemId: "acestep-use-adg",             type: "checkbox" },
     };
 
     let saveTimer = null;
