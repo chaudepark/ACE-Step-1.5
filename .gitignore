@@ -261,3 +261,14 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 docs/en/awesome.md
 package-lock.json
+
+# Stem separation runtime artifacts
+logs/
+instruction.txt
+
+# Hourly auto-generation runtime artifacts
+auto_sample/logs/
+auto_sample/output/
+auto_sample/toml/
+auto_sample/source_index.txt
+auto_sample/.auto_generate.lock

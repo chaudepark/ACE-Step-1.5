@@ -34,6 +34,7 @@ from acestep.ui.gradio.events.results.audio_playback_updates import (
 from acestep.ui.gradio.events.results.scoring import calculate_score_handler
 from acestep.ui.gradio.events.results.lrc_utils import lrc_to_vtt_file
 from acestep.ui.gradio.events.results.session_artifacts import persist_sample_session_artifacts
+from acestep.ui.gradio.events.results.post_generation_hook import run_post_generation_hook
 
 
 def generate_with_progress(
@@ -309,6 +310,8 @@ def generate_with_progress(
 
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(audio_params, f, indent=2, ensure_ascii=False)
+
+        run_post_generation_hook(audio_path, audio_params)
 
         audio_outputs[i] = audio_path
         all_audio_paths.append(audio_path)
