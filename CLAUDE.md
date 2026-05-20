@@ -99,3 +99,138 @@ Gradio Blocks interface with tabs (Simple, Custom, Remix, Extract, Training, Set
 - **Multi-platform**: CUDA, ROCm, Intel XPU, MPS, MLX, CPU. Do not alter non-target platform paths.
 - **Dependencies**: `uv add <package>`
 - Refer to `AGENTS.md` for detailed scope control, decomposition policy, and PR guidelines.
+
+## Post-Generation Hook and Auto-Sampling Loop
+
+This fork adds an opt-in pipeline that off-loads every generated audio
+file to Demucs for stem separation and uploads the original + 4 stems
+to Google Drive. On top of that, a systemd user timer drives a fully
+autonomous "sample mining" loop that generates fresh material every
+hour and pushes the stems to the same Drive folder.
+
+### Data flow
+
+```
+cli.py / Gradio UI
+   ↓ writes <uuid>.wav + <uuid>.json sidecar to OUTPUT_DIR
+   ↓
+post_generation_hook.run_post_generation_hook()
+   ↓ launches ACESTEP_POST_HOOK detached (default = separate.sh)
+   ↓
+separate.sh <wav>
+   ├─ flock-serialize (logs/.separate.lock) — one demucs at a time
+   ├─ parse sidecar JSON → genre/bpm/key slug for naming
+   ├─ Try 1: htdemucs_ft (bag-of-4, timeout 30 min)
+   │     fail → Try 2: htdemucs (single, timeout 10 min)
+   │             success tags stems with _FALLBACK suffix
+   ├─ Create Drive folder <stamp>_<genre>_<bpm>_<key>_NNN
+   ├─ Upload original + vocals/drums/bass/other via gws
+   └─ trash-put the wav + json (recoverable, never `rm`)
+```
+
+For the autonomous loop, prepend:
+
+```
+systemd user timer (hourly, see ~/.config/systemd/user/ace-auto-generate.{service,timer})
+   ↓
+auto_generate.sh
+   ├─ flock-serialize (auto_sample/.auto_generate.lock)
+   ├─ Orphan sweep: any leftover wav in auto_sample/output → separate.sh
+   ├─ pick_caption.py --mode auto → composes TOML from templates.json
+   ├─ uv run python cli.py -c <toml> --backend pt   (empty stdin)
+   └─ separate.sh <new wav>   (synchronous, NOT '&')
+```
+
+### Why synchronous separate.sh inside auto_generate.sh
+
+The systemd service is `Type=oneshot`. Default `KillMode=control-group`
+kills any backgrounded process when ExecStart exits. The original
+implementation launched `separate.sh &` and got its child reaped before
+demucs could finish. The fix: always call separate.sh in the foreground
+so it stays inside the service's lifetime. One cycle is ~4-5 min, well
+within the hourly timer.
+
+### CLI quirks you will hit if you reuse cli.py
+
+1. **8 GB VRAM needs `--backend pt`.** The default `vllm` backend pre-allocates
+   a KV cache block large enough to fail with `Insufficient KV cache` on
+   tier-3 GPUs. `.env`'s `ACESTEP_LM_BACKEND` is **not** read by `cli.py`
+   directly — pass `--backend pt` on the command line.
+2. **`thinking=true` + text2music blocks on `input()`.** When the prompt
+   edit hook is installed (any CoT flag enabled for a non-cover task)
+   `cli.py` writes `instruction.txt`, calls `input()`, and waits. There
+   are two ways through this: (a) pre-create `instruction.txt` so the
+   "found, using without editing" path triggers, or (b) pipe an empty
+   line: `echo "" | uv run python cli.py …`. `auto_generate.sh` uses
+   (b) and deletes any stale `instruction.txt` before each run so the
+   LM's fresh output is always used.
+3. **`cover` task skips the LM entirely.** Search `skip_lm_tasks` in
+   `cli.py`. This is the single most important fact for sample-mining:
+   `cover` is fast (~5-20 s per track), avoids the LM's pop/rock genre
+   bias, and lets you bend an arbitrary reference audio toward a target
+   style via `audio_cover_strength` + Caption alone.
+
+### Caption strategy that survives the LM bias
+
+Two empirical findings from this codebase's previous failures:
+
+- **The LM defaults toward rock/pop.** Any text2music run without
+  explicit negatives risks getting electric guitar even when you asked
+  for ambient chiptune. Put `no rock`, `no electric guitar`, `no metal`
+  in every Caption that isn't a rock genre. `auto_sample/templates.json`
+  encodes per-genre negatives that `pick_caption.py` always appends.
+- **`audio_cover_strength` is the lever for source preservation.**
+  0.80–0.85 keeps the reference recognizable (same genre, fresh take),
+  0.55–0.70 lets the Caption push the style elsewhere (genre transfer),
+  0.20–0.30 makes the reference a loose mood reference. Lower values
+  are needed for big stylistic jumps, but the LM bias also gets stronger,
+  so be diligent with negatives at low strength.
+
+### Repository layout for the loop
+
+| Path | Role |
+|------|------|
+| `separate.sh` | Demucs fallback chain + Drive upload (called by hook) |
+| `auto_generate.sh` | One iteration of: orphan sweep → caption → cli.py → separate |
+| `auto_sample/templates.json` | Genre × mood × texture pools + vocal-lyrics filler |
+| `auto_sample/pick_caption.py` | Randomly composes a TOML config per run |
+| `auto_sample/build_source_index.sh` | Flat index of audio files under `/mnt/d/music_extracted` |
+| `auto_sample/logs/`, `toml/`, `output/`, `source_index.txt`, `.auto_generate.lock` | Runtime only (gitignored) |
+| `~/.config/systemd/user/ace-auto-generate.{service,timer}` | NOT in repo — re-create on a new host |
+| `logs/separate/<stamp>-<basename>.log` | Per-invocation separate.sh logs (gitignored) |
+
+### Required `.env` keys for the hook to fire
+
+```ini
+ACESTEP_POST_HOOK=/abs/path/to/separate.sh   # absence = hook disabled (no-op)
+ACESTEP_DRIVE_FOLDER_ID=<google-drive-folder-id>
+# Optional overrides honored by separate.sh:
+# SEPARATE_DEVICE=cpu|cuda                   (default cpu)
+# SEPARATE_MODEL=htdemucs_ft                 (primary)
+# SEPARATE_FALLBACK_MODEL=htdemucs           (used when primary fails)
+# SEPARATE_PRIMARY_TIMEOUT=1800              (seconds)
+# SEPARATE_FALLBACK_TIMEOUT=600
+```
+
+`gws` (the Drive CLI used for uploads) lives in `~/.cargo/bin`, which
+is **not** on systemd's default `PATH`. The user service hardcodes
+`Environment=PATH=/home/sarai/.cargo/bin:/home/sarai/.local/bin:…` —
+when migrating to a new host, edit that line to match.
+
+### Remote layout (this checkout only, not enforced by code)
+
+This fork follows the standard upstream/origin split:
+
+- `origin` → personal fork (push your customizations here)
+- `upstream` → ACE-Step developer repo (pull-only for their updates)
+
+To absorb upstream changes:
+
+```bash
+git fetch upstream
+git merge upstream/main      # or rebase
+git push origin main
+```
+
+On a fresh clone of the personal fork, `upstream` has to be added back
+by hand (`git remote add upstream …`).
